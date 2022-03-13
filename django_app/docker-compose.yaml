@@ -1,0 +1,68 @@
+version: '3.7'
+
+services:
+  django_app:
+    container_name: django_app
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c "python manage.py migrate --noinput && 
+              python manage.py runserver 0.0.0.0:8000"
+    # environment:
+    #   DJANGO_DB_HOST: db 
+    #   DJANGO_DB_PORT: "5432" 
+    #   DJANGO_DB_NAME: app 
+    #   DJANGO_DB_USER: worker
+    #   DJANGO_DB_PASS: worker 
+    #   DJANGO_DEBUG: "False"
+    env_file:
+      - web-variables.env
+    volumes:
+      - static:/static
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    networks:
+      - app1
+
+  db:
+    image: postgres:12.0-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+        POSTGRES_PASSWORD: 123456
+        POSTGRES_USER: postgres
+        POSTGRES_DB: postgres
+    networks:
+      - app1
+    # ports:
+    #  - 5432:5432
+
+  nginx:
+    build: ./nginx
+    volumes:
+      - static:/static
+    ports:
+      - "80:80"
+    depends_on:
+      - django_app
+    networks:
+      - app1
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+    ports:
+      - "9090:9090"
+    restart: always
+    networks:
+      - app1
+
+volumes:
+  postgres_data:
+  static:
+
+networks:
+  app1:
